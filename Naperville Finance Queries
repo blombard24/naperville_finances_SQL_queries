@@ -1,0 +1,52 @@
+Select * From vendors; 
+
+SELECT * FROM expenditures;
+
+
+-- Setup a drill down table for Tableau to explore/visualize spend by fund/function/department
+SELECT line_item_desc, org_description, object_description, fund, function_, department, division, fiscal_year, payment_amount
+FROM expenditures;
+
+-- Same view as above but including vendor name/city/state to visualize fund/function/department spend distribution by city/state
+SELECT e.vendor_name, v.vendor_state, v.vendor_city, line_item_desc, org_description, object_description, fund, function_, department, division, fiscal_year, payment_amount
+FROM expenditures e
+LEFT JOIN vendors v
+ON e.vendor_id = v.vendor_id;
+
+
+-- Return fiscal expenditure by year (used DECIMAL data type to retain precision, MONEY could be used if storage/speed becomes an issue)
+SELECT fiscal_year, CAST(SUM(payment_amount)AS DECIMAL(19,2)) AS fiscal_amount
+FROM expenditures
+GROUP BY fiscal_year;
+
+-- Return count of vendors by city: To be used for visualizing vendor "density" with relation to local city 
+SELECT DISTINCT vendor_state, vendor_city, COUNT(vendor_state) OVER (PARTITION BY vendor_city) 
+FROM vendors
+GROUP BY vendor, vendor_state, vendor_city
+ORDER BY count DESC;
+
+
+-- Return a count of vendors by state
+SELECT DISTINCT vendor_state, COUNT(vendor_state) OVER (PARTITION BY vendor_state) 
+FROM vendors
+GROUP BY vendor, vendor_state,vendor_city
+ORDER BY vendor_state;
+
+
+-- Return top 5 vendors by payment amount partitioned by state
+WITH tmp AS
+	(
+		SELECT vendor, vendor_city, vendor_state, vendor_total, DENSE_RANK () OVER (PARTITION BY vendor_state ORDER BY vendor_total DESC) AS vendor_rank
+		FROM 
+			(SELECT v.vendor, v.vendor_city, v.vendor_state, COALESCE(sum(e.payment_amount),0) AS vendor_total
+			FROM vendors v
+			LEFT JOIN expenditures e
+			ON v.vendor_id = e.vendor_id
+			GROUP BY v.vendor, v.vendor_state, v.vendor_city
+			) sub
+	)
+	SELECT *
+	FROM tmp
+	where vendor_rank <= 5
+	ORDER BY vendor_state
+
