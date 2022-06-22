@@ -20,6 +20,8 @@ FROM expenditures
 GROUP BY fiscal_year;
 
 -- Return count of vendors by city: To be used for visualizing vendor "density" with relation to local city 
+CREATE VIEW VendorCityCount
+AS
 SELECT DISTINCT vendor_state, vendor_city, COUNT(vendor_state) OVER (PARTITION BY vendor_city) 
 FROM vendors
 GROUP BY vendor, vendor_state, vendor_city
